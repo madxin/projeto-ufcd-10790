@@ -1,14 +1,33 @@
+import os
 import discord
 from discord.ext import commands
-import os
 from dotenv import load_dotenv
+from pathlib import Path
 
-load_dotenv()
+# Carregar as variáveis do ficheiro .env
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env")
 
-bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
+# Configuração das intents
+intents = discord.Intents.default()
+intents.members = True
+intents.message_content = True
 
+# Criar a instância do bot
+bot = commands.Bot(
+    command_prefix="!",
+    intents=intents
+)
+
+# Evento executado quando o bot fica online
 @bot.event
 async def on_ready():
-    print(f"Bot ligado como {bot.user}")
+    print("===================================")
+    print("✅ Bot iniciado com sucesso!")
+    print(f"🤖 Ligado como: {bot.user}")
+    print("===================================")
 
-bot.run(os.getenv("TOKEN"))
+# Iniciar o bot
+token = os.getenv("TOKEN")
+print("TOKEN =", token)
+bot.run(token)
