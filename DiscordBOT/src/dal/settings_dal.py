@@ -33,3 +33,17 @@ class SettingsDAL:
             return result[0]
 
         return None
+    
+    @staticmethod
+    def clear_autorole(guild_id: int):
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            UPDATE settings
+            SET autorole_id = NULL
+            WHERE guild_id = ?
+        """, (guild_id,))
+
+        conn.commit()
+        conn.close()
