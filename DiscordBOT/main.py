@@ -34,8 +34,6 @@ async def on_ready():
 async def ping(ctx):
     await ctx.send("🏓 Pong!")
 
-###AUTOROLE###
-
 # Autorole
 @bot.command()
 @commands.has_permissions(administrator=True)
@@ -95,44 +93,7 @@ async def clearautorole(ctx):
 
     await ctx.send(
         "🗑️ O cargo automático foi removido com sucesso."
-    )
-
-###LOGS###
-
-# Escolher o canal das logs
-@bot.command()
-@commands.has_permissions(administrator=True)
-async def setlogschannel(ctx, channel: discord.TextChannel):
-
-    SettingsDAL.set_logs_channel(
-        guild_id=ctx.guild.id,
-        channel_id=channel.id
-    )
-
-    await ctx.send(
-        f"✅ O canal de logs foi configurado para {channel.mention}."
-    )
-
-# Comando para testar o canal das logs
-@bot.command()
-async def logschannel(ctx):
-
-    channel_id = SettingsDAL.get_logs_channel(ctx.guild.id)
-
-    if channel_id is None:
-        await ctx.send("❌ Nenhum canal de logs está configurado.")
-        return
-
-    channel = ctx.guild.get_channel(channel_id)
-
-    if channel:
-        await ctx.send(
-            f"📋 O canal de logs atual é: {channel.mention}"
-        )
-    else:
-        await ctx.send(
-            "⚠️ O canal configurado já não existe."
-        )
+    )                       
 
 # Obter Token
 token = os.getenv("TOKEN")
