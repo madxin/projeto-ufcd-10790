@@ -19,7 +19,8 @@ def initialize_database():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS settings (
             guild_id INTEGER PRIMARY KEY,
-            autorole_id INTEGER
+            autorole_id INTEGER,
+            logs_channel_id INTEGER
         )
     """)
 
