@@ -82,3 +82,4 @@ class SettingsDAL:
             return result[0]
 
         return None    
+    

@@ -21,3 +21,4 @@ class SettingsBLL:
     @staticmethod
     def get_logs_channel(guild_id):
         return SettingsDAL.get_logs_channel(guild_id)
+    

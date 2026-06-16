@@ -24,5 +24,16 @@ def initialize_database():
         )
     """)
 
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS ticket_settings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id INTEGER NOT NULL,
+        ticket_type TEXT NOT NULL,
+        category_id INTEGER,
+        staff_role_id INTEGER,
+        UNIQUE(guild_id, ticket_type)
+    )
+    """)
+
     conn.commit()
     conn.close()
