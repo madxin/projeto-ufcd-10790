@@ -1,7 +1,160 @@
 import discord
 from discord.ext import commands
 
+
 from src.bll.whl_settings_bll import WhlSettingsBLL
+import io
+from datetime import datetime
+
+from src.bll.settings_bll import SettingsBLL
+
+
+class WhlReviewView(discord.ui.View):
+
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(
+        label="✅ Aprovar",
+        style=discord.ButtonStyle.green
+    )
+    async def approve(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button
+    ):
+
+        guild = interaction.guild
+        user = interaction.user
+
+        messages = []
+
+        async for message in interaction.channel.history(
+            limit=None,
+            oldest_first=True
+        ):
+
+            timestamp = message.created_at.strftime(
+                "%d/%m/%Y %H:%M:%S"
+            )
+
+            content = message.content
+
+            if not content:
+                content = "[Mensagem sem texto]"
+
+            messages.append(
+                f"[{timestamp}] "
+                f"{message.author}: "
+                f"{content}"
+            )
+
+        transcript_text = "\n".join(messages)
+
+        transcript_file = discord.File(
+            io.BytesIO(
+                transcript_text.encode("utf-8")
+            ),
+            filename=f"{interaction.channel.name}.txt"
+        )
+
+        logs_channel_id = SettingsBLL.get_logs_channel(
+            guild.id
+        )
+
+        if logs_channel_id:
+
+            logs_channel = guild.get_channel(
+                logs_channel_id
+            )
+
+            if logs_channel:
+
+                await logs_channel.send(
+                    f"✅ **Candidatura Aprovada**\n\n"
+                    f"👤 Aprovada por: {user.mention}\n"
+                    f"📁 Canal: {interaction.channel.name}\n"
+                    f"🕒 Data: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}",
+                    file=transcript_file
+                )
+
+        await interaction.response.send_message(
+            "✅ Candidatura aprovada.",
+            ephemeral=True
+        )
+
+        await interaction.channel.delete()
+
+    @discord.ui.button(
+        label="❌ Rejeitar",
+        style=discord.ButtonStyle.red
+    )
+    async def reject(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button
+    ):
+
+        guild = interaction.guild
+        user = interaction.user
+
+        messages = []
+
+        async for message in interaction.channel.history(
+            limit=None,
+            oldest_first=True
+        ):
+
+            timestamp = message.created_at.strftime(
+                "%d/%m/%Y %H:%M:%S"
+            )
+
+            content = message.content
+
+            if not content:
+                content = "[Mensagem sem texto]"
+
+            messages.append(
+                f"[{timestamp}] "
+                f"{message.author}: "
+                f"{content}"
+            )
+
+        transcript_text = "\n".join(messages)
+
+        transcript_file = discord.File(
+            io.BytesIO(
+                transcript_text.encode("utf-8")
+            ),
+            filename=f"{interaction.channel.name}.txt"
+        )
+
+        logs_channel_id = SettingsBLL.get_logs_channel(
+            guild.id
+        )
+
+        if logs_channel_id:
+
+            logs_channel = guild.get_channel(
+                logs_channel_id
+            )
+
+            if logs_channel:
+
+                await logs_channel.send(
+                    f"❌ **Candidatura Rejeitada**\n\n"
+                    f"👤 Rejeitada por: {user.mention}\n"
+                    f"📁 Canal: {interaction.channel.name}\n"
+                    f"🕒 Data: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}",
+                    file=transcript_file
+                )
+
+        await interaction.response.send_message(
+            "❌ Candidatura rejeitada.",
+            ephemeral=True
+        )
+
+        await interaction.channel.delete()
 
 
 class WhlTypeSelect(discord.ui.Select):
@@ -121,7 +274,8 @@ class WhlTypeSelect(discord.ui.Select):
                 f"3️⃣ Horas de jogo no servidor\n"
                 f"4️⃣ Experiência anterior\n"
                 f"5️⃣ Porque deseja integrar esta whitelist?\n\n"
-                f"Quando terminar aguarde pela análise da equipa responsável."
+                f"Quando terminar aguarde pela análise da equipa responsável.",
+                view=WhlReviewView()
             )
 
             await interaction.response.send_message(
