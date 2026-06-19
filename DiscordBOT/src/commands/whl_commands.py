@@ -30,104 +30,104 @@ class WhlTypeSelect(discord.ui.Select):
             options=options
         )
 
-        async def callback(
-            self,
-            interaction: discord.Interaction
-        ):
+    async def callback(
+        self,
+        interaction: discord.Interaction
+    ):
 
-            whl_type = self.values[0]
+        whl_type = self.values[0]
 
-            config = WhlSettingsBLL.get_whl_config(
-                interaction.guild.id,
-                whl_type
+        config = WhlSettingsBLL.get_whl_config(
+            interaction.guild.id,
+            whl_type
+        )
+
+        if config is None:
+
+            await interaction.response.send_message(
+                "❌ Esta whitelist não está configurada.",
+                ephemeral=True
             )
 
-            if config is None:
+            return
 
-                await interaction.response.send_message(
-                    "❌ Esta whitelist não está configurada.",
-                    ephemeral=True
-                )
+        category_id, staff_role_id = config
 
-                return
+        guild = interaction.guild
+        user = interaction.user
 
-            category_id, staff_role_id = config
+        category = guild.get_channel(
+            category_id
+        )
 
-            guild = interaction.guild
-            user = interaction.user
+        staff_role = guild.get_role(
+            staff_role_id
+        )
 
-            category = guild.get_channel(
-                category_id
+        channel_name = (
+            f"wl-{whl_type}-{user.name}"
+            .lower()
+            .replace(" ", "-")
+        )
+
+        existing_channel = discord.utils.get(
+            guild.channels,
+            name=channel_name
+        )
+
+        if existing_channel:
+
+            await interaction.response.send_message(
+                f"❌ Já tens uma candidatura aberta: {existing_channel.mention}",
+                ephemeral=True
             )
 
-            staff_role = guild.get_role(
-                staff_role_id
+            return
+        
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(
+                view_channel=False
+            ),
+
+            user: discord.PermissionOverwrite(
+                view_channel=True,
+                send_messages=True,
+                read_message_history=True
             )
+        }
 
-            channel_name = (
-                f"wl-{whl_type}-{user.name}"
-                .lower()
-                .replace(" ", "-")
-            )
+        if staff_role:
 
-            existing_channel = discord.utils.get(
-                guild.channels,
-                name=channel_name
-            )
-
-            if existing_channel:
-
-                await interaction.response.send_message(
-                    f"❌ Já tens uma candidatura aberta: {existing_channel.mention}",
-                    ephemeral=True
-                )
-
-                return
-            
-            overwrites = {
-                guild.default_role: discord.PermissionOverwrite(
-                    view_channel=False
-                ),
-
-                user: discord.PermissionOverwrite(
+            overwrites[staff_role] = (
+                discord.PermissionOverwrite(
                     view_channel=True,
                     send_messages=True,
                     read_message_history=True
                 )
-            }
+            )
 
-            if staff_role:
+            channel = await guild.create_text_channel(
+                name=channel_name,
+                category=category,
+                overwrites=overwrites
+            )
 
-                overwrites[staff_role] = (
-                    discord.PermissionOverwrite(
-                        view_channel=True,
-                        send_messages=True,
-                        read_message_history=True
-                    )
-                )
+            await channel.send(
+                f"📋 Bem-vindo {user.mention}\n\n"
+                f"**Candidatura: {whl_type.capitalize()}**\n\n"
+                f"Por favor responda às seguintes questões:\n\n"
+                f"1️⃣ Nome IC\n"
+                f"2️⃣ Idade IC\n"
+                f"3️⃣ Horas de jogo no servidor\n"
+                f"4️⃣ Experiência anterior\n"
+                f"5️⃣ Porque deseja integrar esta whitelist?\n\n"
+                f"Quando terminar aguarde pela análise da equipa responsável."
+            )
 
-                channel = await guild.create_text_channel(
-                    name=channel_name,
-                    category=category,
-                    overwrites=overwrites
-                )
-
-                await channel.send(
-                    f"📋 Bem-vindo {user.mention}\n\n"
-                    f"**Candidatura: {whl_type.capitalize()}**\n\n"
-                    f"Por favor responda às seguintes questões:\n\n"
-                    f"1️⃣ Nome IC\n"
-                    f"2️⃣ Idade IC\n"
-                    f"3️⃣ Horas de jogo no servidor\n"
-                    f"4️⃣ Experiência anterior\n"
-                    f"5️⃣ Porque deseja integrar esta whitelist?\n\n"
-                    f"Quando terminar aguarde pela análise da equipa responsável."
-                )
-
-                await interaction.response.send_message(
-                    f"✅ Candidatura criada: {channel.mention}",
-                    ephemeral=True
-                )
+            await interaction.response.send_message(
+                f"✅ Candidatura criada: {channel.mention}",
+                ephemeral=True
+            )
 
 
 class WhlTypeView(discord.ui.View):
