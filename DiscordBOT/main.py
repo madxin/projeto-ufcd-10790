@@ -8,6 +8,7 @@ from src.dal.settings_dal import SettingsDAL
 from src.commands.admin_commands import setup as setup_admin_commands
 from src.events.member_events import setup as setup_member_events
 from src.commands.ticket_commands import setup as setup_ticket_commands
+from src.commands.whl_commands import setup as setup_whl_commands
 
 # Carregar as variáveis do ficheiro .env
 BASE_DIR = Path(__file__).resolve().parent
@@ -41,6 +42,7 @@ async def ping(ctx):
 setup_admin_commands(bot)
 setup_member_events(bot)
 setup_ticket_commands(bot)
+setup_whl_commands(bot)
 
 
 # Inicializar a base de dados
