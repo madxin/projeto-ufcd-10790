@@ -3,6 +3,7 @@ from discord.ext import commands
 
 from src.bll.settings_bll import SettingsBLL
 from src.bll.ticket_settings_bll import TicketSettingsBLL
+from src.bll.whl_settings_bll import WhlSettingsBLL
 
 
 def setup(bot):
@@ -149,4 +150,93 @@ def setup(bot):
                 f"{role.mention if role else 'Não configurado'}\n\n"
             )
 
-        await ctx.send(mensagem)        
+        await ctx.send(mensagem)
+
+    @bot.command()
+    @commands.has_permissions(administrator=True)
+    async def setwhlcategory(
+        ctx,
+        whl_type: str,
+        *,
+        category_name: str
+    ):
+
+        category = discord.utils.get(
+            ctx.guild.categories,
+            name=category_name
+        )
+
+        if category is None:
+            await ctx.send(
+                f"❌ A categoria '{category_name}' não foi encontrada."
+            )
+            return
+
+        WhlSettingsBLL.set_whl_category(
+            ctx.guild.id,
+            whl_type,
+            category.id
+        )
+
+        await ctx.send(
+            f"✅ Categoria da whitelist **{whl_type}** configurada para **{category.name}**."
+        )
+
+    @bot.command()
+    @commands.has_permissions(administrator=True)
+    async def setwhlrole(
+        ctx,
+        whl_type: str,
+        role: discord.Role
+    ):
+
+        WhlSettingsBLL.set_whl_role(
+            ctx.guild.id,
+            whl_type,
+            role.id
+        )
+
+        await ctx.send(
+            f"✅ Cargo da whitelist **{whl_type}** configurado para {role.mention}."
+        )
+
+    @bot.command()
+    async def whlconfig(ctx):
+
+        configs = WhlSettingsBLL.get_all_whl_configs(
+            ctx.guild.id
+        )
+
+        if not configs:
+
+            await ctx.send(
+                "❌ Não existem configurações de whitelist."
+            )
+
+            return
+
+        mensagem = "## 📋 Configuração das Whitelists\n\n"
+
+        for whl_type, category_id, role_id in configs:
+
+            category = (
+                ctx.guild.get_channel(category_id)
+                if category_id
+                else None
+            )
+
+            role = (
+                ctx.guild.get_role(role_id)
+                if role_id
+                else None
+            )
+
+            mensagem += (
+                f"**{whl_type.capitalize()}**\n"
+                f"📂 Categoria: "
+                f"{category.name if category else 'Não configurada'}\n"
+                f"👮 Cargo: "
+                f"{role.mention if role else 'Não configurado'}\n\n"
+            )
+
+        await ctx.send(mensagem)               
