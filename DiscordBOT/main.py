@@ -3,7 +3,7 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 from pathlib import Path
-from database.database import initialize_database
+from DiscordBOT.src.database.database import initialize_database
 from src.dal.settings_dal import SettingsDAL
 from src.commands.admin_commands import setup as setup_admin_commands
 from src.events.member_events import setup as setup_member_events
@@ -48,11 +48,5 @@ setup_whl_commands(bot)
 # Inicializar a base de dados
 initialize_database()
 
-
-# Obter Token
-token = os.getenv("TOKEN")
-print("TOKEN =", token)
-
-
 # Iniciar o bot
-bot.run(token)
+bot.run(os.getenv("TOKEN"))
