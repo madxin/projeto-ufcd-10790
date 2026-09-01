@@ -1,4 +1,5 @@
 import mysql.connector
+from mysql.connector import Error
 
 from config import (
     DB_HOST,
@@ -11,13 +12,21 @@ from config import (
 
 def get_connection():
 
-    return mysql.connector.connect(
-        host=DB_HOST,
-        port=DB_PORT,
-        user=DB_USER,
-        password=DB_PASSWORD,
-        database=DB_NAME
-    )
+    try:
+
+        return mysql.connector.connect(
+            host=DB_HOST,
+            port=DB_PORT,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            database=DB_NAME
+        )
+
+    except Error as e:
+
+        print(f"❌ Erro ao ligar ao MySQL: {e}")
+
+        raise
 
 
 def initialize_database():
@@ -72,4 +81,5 @@ def initialize_database():
 
     conn.commit()
 
+    cursor.close()
     conn.close()

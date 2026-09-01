@@ -1,4 +1,4 @@
-from database.database import get_connection
+from src.database.database import get_connection
 
 
 class TicketSettingsDAL:
@@ -9,16 +9,19 @@ class TicketSettingsDAL:
         ticket_type,
         category_id
     ):
+
         conn = get_connection()
         cursor = conn.cursor()
 
         cursor.execute("""
-            INSERT INTO ticket_settings
-            (guild_id, ticket_type, category_id)
-            VALUES (?, ?, ?)
-            ON CONFLICT(guild_id, ticket_type)
-            DO UPDATE SET
-                category_id = excluded.category_id
+            INSERT INTO ticket_settings (
+                guild_id,
+                ticket_type,
+                category_id
+            )
+            VALUES (%s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+                category_id = VALUES(category_id)
         """, (
             guild_id,
             ticket_type.lower(),
@@ -26,6 +29,8 @@ class TicketSettingsDAL:
         ))
 
         conn.commit()
+
+        cursor.close()
         conn.close()
 
     @staticmethod
@@ -34,16 +39,19 @@ class TicketSettingsDAL:
         ticket_type,
         staff_role_id
     ):
+
         conn = get_connection()
         cursor = conn.cursor()
 
         cursor.execute("""
-            INSERT INTO ticket_settings
-            (guild_id, ticket_type, staff_role_id)
-            VALUES (?, ?, ?)
-            ON CONFLICT(guild_id, ticket_type)
-            DO UPDATE SET
-                staff_role_id = excluded.staff_role_id
+            INSERT INTO ticket_settings (
+                guild_id,
+                ticket_type,
+                staff_role_id
+            )
+            VALUES (%s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+                staff_role_id = VALUES(staff_role_id)
         """, (
             guild_id,
             ticket_type.lower(),
@@ -51,6 +59,8 @@ class TicketSettingsDAL:
         ))
 
         conn.commit()
+
+        cursor.close()
         conn.close()
 
     @staticmethod
@@ -58,13 +68,17 @@ class TicketSettingsDAL:
         guild_id,
         ticket_type
     ):
+
         conn = get_connection()
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT category_id, staff_role_id
+            SELECT
+                category_id,
+                staff_role_id
             FROM ticket_settings
-            WHERE guild_id = ? AND ticket_type = ?
+            WHERE guild_id = %s
+            AND ticket_type = %s
         """, (
             guild_id,
             ticket_type.lower()
@@ -72,6 +86,7 @@ class TicketSettingsDAL:
 
         result = cursor.fetchone()
 
+        cursor.close()
         conn.close()
 
         return result
@@ -80,6 +95,7 @@ class TicketSettingsDAL:
     def get_all_ticket_configs(
         guild_id
     ):
+
         conn = get_connection()
         cursor = conn.cursor()
 
@@ -89,12 +105,15 @@ class TicketSettingsDAL:
                 category_id,
                 staff_role_id
             FROM ticket_settings
-            WHERE guild_id = ?
+            WHERE guild_id = %s
             ORDER BY ticket_type
-        """, (guild_id,))
+        """, (
+            guild_id,
+        ))
 
         result = cursor.fetchall()
 
+        cursor.close()
         conn.close()
 
         return result
