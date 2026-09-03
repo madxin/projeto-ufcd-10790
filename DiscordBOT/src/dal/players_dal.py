@@ -27,3 +27,24 @@ class PlayersDAL:
         conn.close()
 
         return result
+
+    @staticmethod
+    def remove_player_job(discord_id):
+        conn = get_server_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            UPDATE users
+            SET job = 'unemployed',
+                job_grade = 0
+            WHERE discord_id = %s
+        """, (discord_id,))
+
+        conn.commit()
+
+        affected_rows = cursor.rowcount
+
+        cursor.close()
+        conn.close()
+
+        return affected_rows > 0

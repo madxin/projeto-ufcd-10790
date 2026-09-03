@@ -79,6 +79,14 @@ def initialize_database():
         )
     """)
 
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS whitelist_blocks (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            discord_id VARCHAR(50) NOT NULL UNIQUE,
+            blocked_until DATETIME NOT NULL
+        )
+    """)
+
     conn.commit()
 
     cursor.close()

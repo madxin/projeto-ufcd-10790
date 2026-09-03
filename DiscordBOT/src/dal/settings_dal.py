@@ -131,3 +131,78 @@ class SettingsDAL:
             return result[0]
 
         return None
+
+    @staticmethod
+    def set_whl_block_role(
+        guild_id: int,
+        role_id: int
+    ):
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO settings (
+                guild_id,
+                whl_block_role_id
+            )
+            VALUES (%s, %s)
+            ON DUPLICATE KEY UPDATE
+                whl_block_role_id = VALUES(whl_block_role_id)
+        """, (
+            guild_id,
+            role_id
+        ))
+
+        conn.commit()
+
+        cursor.close()
+        conn.close()
+
+    @staticmethod
+    def get_whl_block_role(
+        guild_id: int
+    ):
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT
+                whl_block_role_id
+            FROM settings
+            WHERE guild_id = %s
+        """, (
+            guild_id,
+        ))
+
+        result = cursor.fetchone()
+
+        cursor.close()
+        conn.close()
+
+        if result:
+            return result[0]
+
+        return None
+
+    @staticmethod
+    def clear_whl_block_role(
+        guild_id: int
+    ):
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            UPDATE settings
+            SET whl_block_role_id = NULL
+            WHERE guild_id = %s
+        """, (
+            guild_id,
+        ))
+
+        conn.commit()
+
+        cursor.close()
+        conn.close()

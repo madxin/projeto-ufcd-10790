@@ -21,4 +21,16 @@ class SettingsBLL:
     @staticmethod
     def get_logs_channel(guild_id):
         return SettingsDAL.get_logs_channel(guild_id)
+
+    @staticmethod
+    def set_whl_block_role(guild_id, role_id):
+        SettingsDAL.set_whl_block_role(guild_id, role_id)
+
+    @staticmethod
+    def get_whl_block_role(guild_id):
+        return SettingsDAL.get_whl_block_role(guild_id)
+
+    @staticmethod
+    def clear_whl_block_role(guild_id):
+        SettingsDAL.clear_whl_block_role(guild_id)
     

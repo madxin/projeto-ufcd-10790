@@ -5,6 +5,7 @@ from src.bll.settings_bll import SettingsBLL
 from src.bll.ticket_settings_bll import TicketSettingsBLL
 from src.bll.whl_settings_bll import WhlSettingsBLL
 from src.bll.players_bll import PlayersBLL
+from src.bll.whitelist_block_bll import WhitelistBlockBLL
 
 
 def setup(bot):
@@ -283,3 +284,66 @@ def setup(bot):
             f"**Job Grade:** {job_grade}\n"
             f"**Grupo:** {group}"
         )
+
+    @bot.command()
+    @commands.has_permissions(administrator=True)
+    async def clearwhlblock(ctx, member: discord.Member):
+
+        discord_id = str(member.id)
+
+        WhitelistBlockBLL.remove_block(
+            discord_id
+        )
+
+        role_id = SettingsBLL.get_whl_block_role(
+            ctx.guild.id
+        )
+
+        role = ctx.guild.get_role(role_id) if role_id else None
+
+        if role and role in member.roles:
+            await member.remove_roles(role)
+
+        await ctx.send(
+            f"✅ O Whitelist Block de {member.mention} foi removido."
+        )
+
+    @bot.command()
+    @commands.has_permissions(administrator=True)
+    async def setwhlblock(ctx, role: discord.Role):
+
+        SettingsBLL.set_whl_block_role(
+            ctx.guild.id,
+            role.id
+        )
+
+        await ctx.send(
+            f"✅ O cargo de Whitelist Block foi configurado para {role.mention}."
+        )
+
+    @bot.command()
+    @commands.has_permissions(administrator=True)
+    async def whlblockconfig(ctx):
+
+        role_id = SettingsBLL.get_whl_block_role(
+            ctx.guild.id
+        )
+
+        if role_id is None:
+            await ctx.send(
+                "❌ Nenhum cargo de Whitelist Block está configurado."
+            )
+            return
+
+        role = ctx.guild.get_role(role_id)
+
+        if role is None:
+            await ctx.send(
+                "⚠️ O cargo configurado já não existe neste servidor."
+            )
+            return
+
+        await ctx.send(
+            f"🔒 **Whitelist Block**\n\n"
+            f"Cargo configurado: {role.mention}"
+        )        
