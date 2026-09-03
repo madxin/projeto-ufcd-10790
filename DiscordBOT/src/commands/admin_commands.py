@@ -4,6 +4,7 @@ from discord.ext import commands
 from src.bll.settings_bll import SettingsBLL
 from src.bll.ticket_settings_bll import TicketSettingsBLL
 from src.bll.whl_settings_bll import WhlSettingsBLL
+from src.bll.players_bll import PlayersBLL
 
 
 def setup(bot):
@@ -239,4 +240,46 @@ def setup(bot):
                 f"{role.mention if role else 'Não configurado'}\n\n"
             )
 
-        await ctx.send(mensagem)               
+        await ctx.send(mensagem)  
+
+        ### PLAYERS
+
+    @bot.command()
+    @commands.has_permissions(administrator=True)
+    async def player(ctx, member: discord.Member = None):
+
+        if member is None:
+            member = ctx.author
+
+        discord_id = str(member.id)
+
+        player = PlayersBLL.get_player_by_discord_id(
+            discord_id
+        )
+
+        if player is None:
+            await ctx.send(
+                f"❌ O Discord de {member.mention} não está associado a nenhum jogador."
+            )
+            return
+
+        (
+            identifier,
+            discord_id,
+            firstname,
+            lastname,
+            job,
+            job_grade,
+            group
+        ) = player
+
+        await ctx.send(
+            f"## 👤 Informação do Jogador\n\n"
+            f"**Discord:** {member.mention}\n"
+            f"**Nome:** {firstname} {lastname}\n"
+            f"**Discord ID:** {discord_id}\n"
+            f"**Identifier:** `{identifier}`\n"
+            f"**Job:** {job}\n"
+            f"**Job Grade:** {job_grade}\n"
+            f"**Grupo:** {group}"
+        )

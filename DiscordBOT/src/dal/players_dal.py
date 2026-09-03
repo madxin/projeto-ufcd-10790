@@ -1,11 +1,11 @@
-from DiscordBOT.src.database.database import get_connection
+from src.database.server_database import get_server_connection
 
 
 class PlayersDAL:
 
     @staticmethod
     def get_player_by_discord_id(discord_id):
-        conn = get_connection()
+        conn = get_server_connection()
         cursor = conn.cursor()
 
         cursor.execute("""

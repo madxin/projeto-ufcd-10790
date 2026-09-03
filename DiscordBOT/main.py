@@ -4,10 +4,12 @@ from discord.ext import commands
 from config import TOKEN
 from src.database.database import initialize_database
 
+
 from src.commands.admin_commands import setup as setup_admin_commands
 from src.commands.ticket_commands import setup as setup_ticket_commands
 from src.commands.whl_commands import setup as setup_whl_commands
 from src.events.member_events import setup as setup_member_events
+
 
 
 # Configuração das intents
@@ -56,6 +58,7 @@ setup_whl_commands(bot)
 # Inicializar a base de dados
 
 initialize_database()
+
 
 
 # Iniciar o bot

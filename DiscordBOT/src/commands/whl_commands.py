@@ -7,7 +7,7 @@ import io
 from datetime import datetime
 
 from src.bll.settings_bll import SettingsBLL
-
+from src.bll.players_bll import PlayersBLL
 
 class WhlReviewView(discord.ui.View):
 
@@ -208,6 +208,17 @@ class WhlTypeSelect(discord.ui.Select):
 
         guild = interaction.guild
         user = interaction.user
+
+        player = PlayersBLL.get_player_by_discord_id(
+            str(user.id)
+        )
+
+        if player is None:
+            await interaction.response.send_message(
+                "❌ O teu Discord não está associado a nenhum jogador no servidor.",
+                ephemeral=True
+            )
+            return
 
         category = guild.get_channel(
             category_id
