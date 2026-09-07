@@ -38,3 +38,7 @@ class WhitelistBlockBLL:
             return False
 
         return True
+
+    @staticmethod
+    def get_expired_blocks():
+        return WhitelistBlockDAL.get_expired_blocks()

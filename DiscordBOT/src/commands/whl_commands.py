@@ -160,7 +160,7 @@ class WhlReviewView(discord.ui.View):
 class WhlRemoveJobConfirmView(discord.ui.View):
 
     def __init__(self, whl_type, category_id, staff_role_id, player):
-        super().__init__(timeout=60)
+        super().__init__(timeout=180)
 
         self.whl_type = whl_type
         self.category_id = category_id
@@ -223,7 +223,7 @@ class WhlRemoveJobConfirmView(discord.ui.View):
 class WhlRemoveJobFinalView(discord.ui.View):
 
     def __init__(self, whl_type, category_id, staff_role_id, player):
-        super().__init__(timeout=60)
+        super().__init__(timeout=180)
 
         self.whl_type = whl_type
         self.category_id = category_id
@@ -259,7 +259,7 @@ class WhlRemoveJobFinalView(discord.ui.View):
             discord_id
         )
 
-        role_id = WhlSettingsBLL.get_whl_block_role(
+        role_id = SettingsBLL.get_whl_block_role(
             interaction.guild.id
         )
 
@@ -366,7 +366,7 @@ class WhlTypeSelect(discord.ui.Select):
             interaction.user.id
         )
 
-        whl_block_role_id = WhlSettingsBLL.get_whl_block_role(
+        whl_block_role_id = SettingsBLL.get_whl_block_role(
             interaction.guild.id
         )
 

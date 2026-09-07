@@ -54,3 +54,21 @@ class WhitelistBlockDAL:
 
         cursor.close()
         conn.close()
+
+    @staticmethod
+    def get_expired_blocks():
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT discord_id, blocked_until
+            FROM whitelist_blocks
+            WHERE blocked_until <= NOW()
+        """)
+
+        results = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+
+        return results
