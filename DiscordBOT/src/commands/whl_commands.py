@@ -10,6 +10,32 @@ from src.bll.settings_bll import SettingsBLL
 from src.bll.players_bll import PlayersBLL
 from src.bll.whitelist_block_bll import WhitelistBlockBLL
 
+class WhlMembersView(discord.ui.View):
+
+    def __init__(self):
+        super().__init__(timeout=300)
+
+    @discord.ui.button(
+        label="👥 Indicar membros",
+        style=discord.ButtonStyle.primary
+    )
+    async def add_members(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button
+    ):
+
+        await interaction.response.send_message(
+            "👥 Menciona agora os membros da tua organização nesta mensagem.\n\n"
+            "⚠️ **Importante:**\n"
+            "• Os membros devem já ter entrado na cidade.\n"
+            "• Os membros não podem pertencer atualmente a outra organização.\n"
+            "• Membros que não cumpram estas condições serão ignorados no momento da aprovação.\n\n"
+            "Exemplo:\n"
+            "@Jogador1 @Jogador2 @Jogador3",
+            ephemeral=True
+        )
+
 class WhlReviewView(discord.ui.View):
 
     def __init__(self):
@@ -306,7 +332,7 @@ class WhlTypeSelect(discord.ui.Select):
 
         options = []
 
-        for whl_type, _, _ in configs:
+        for whl_type, _, _, _ in configs:
 
             options.append(
                 discord.SelectOption(
@@ -343,7 +369,7 @@ class WhlTypeSelect(discord.ui.Select):
 
             return
 
-        category_id, staff_role_id = config
+        category_id, staff_role_id, organization_role_id = config
 
         guild = interaction.guild
         user = interaction.user

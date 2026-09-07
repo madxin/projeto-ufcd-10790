@@ -159,9 +159,34 @@ def setup(bot):
     async def setwhlcategory(
         ctx,
         whl_type: str,
-        *,
-        category_name: str
+        *args
     ):
+
+        if len(args) < 2:
+            await ctx.send(
+                "❌ Utilização correta:\n"
+                "`!setwhlcategory <tipo> <categoria> <cargo>`"
+            )
+            return
+
+        organization_role = None
+
+        # O último argumento tem de ser um cargo
+        role_text = args[-1]
+
+        if ctx.message.role_mentions:
+            for role in ctx.message.role_mentions:
+                if role.mention == role_text:
+                    organization_role = role
+                    break
+
+        if organization_role is None:
+            await ctx.send(
+                "❌ Tens de mencionar um cargo da organização no final do comando."
+            )
+            return
+
+        category_name = " ".join(args[:-1]).strip()
 
         category = discord.utils.get(
             ctx.guild.categories,
@@ -177,11 +202,14 @@ def setup(bot):
         WhlSettingsBLL.set_whl_category(
             ctx.guild.id,
             whl_type,
-            category.id
+            category.id,
+            organization_role.id
         )
 
         await ctx.send(
-            f"✅ Categoria da whitelist **{whl_type}** configurada para **{category.name}**."
+            f"✅ Whitelist **{whl_type}** configurada.\n\n"
+            f"📂 Categoria: {category.name}\n"
+            f"🏢 Cargo da organização: {organization_role.mention}"
         )
 
     @bot.command()
@@ -219,7 +247,7 @@ def setup(bot):
 
         mensagem = "## 📋 Configuração das Whitelists\n\n"
 
-        for whl_type, category_id, role_id in configs:
+        for whl_type, category_id, staff_role_id, organization_role_id in configs:
 
             category = (
                 ctx.guild.get_channel(category_id)
@@ -227,9 +255,15 @@ def setup(bot):
                 else None
             )
 
-            role = (
-                ctx.guild.get_role(role_id)
-                if role_id
+            staff_role = (
+                ctx.guild.get_role(staff_role_id)
+                if staff_role_id
+                else None
+            )
+
+            organization_role = (
+                ctx.guild.get_role(organization_role_id)
+                if organization_role_id
                 else None
             )
 
@@ -237,11 +271,13 @@ def setup(bot):
                 f"**{whl_type.capitalize()}**\n"
                 f"📂 Categoria: "
                 f"{category.name if category else 'Não configurada'}\n"
-                f"👮 Cargo: "
-                f"{role.mention if role else 'Não configurado'}\n\n"
+                f"👮 Staff: "
+                f"{staff_role.mention if staff_role else 'Não configurado'}\n"
+                f"🏢 Organização: "
+                f"{organization_role.mention if organization_role else 'Não configurado'}\n\n"
             )
 
-        await ctx.send(mensagem)  
+        await ctx.send(mensagem)
 
         ### PLAYERS
 

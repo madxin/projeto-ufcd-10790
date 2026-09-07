@@ -79,7 +79,8 @@ class WhlSettingsDAL:
         cursor.execute("""
             SELECT
                 category_id,
-                staff_role_id
+                staff_role_id,
+                organization_role_id
             FROM whl_settings
             WHERE guild_id = %s
             AND whl_type = %s
@@ -107,7 +108,8 @@ class WhlSettingsDAL:
             SELECT
                 whl_type,
                 category_id,
-                staff_role_id
+                staff_role_id,
+                organization_role_id
             FROM whl_settings
             WHERE guild_id = %s
             ORDER BY whl_type
