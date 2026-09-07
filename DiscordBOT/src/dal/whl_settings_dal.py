@@ -7,7 +7,8 @@ class WhlSettingsDAL:
     def set_whl_category(
         guild_id,
         whl_type,
-        category_id
+        category_id,
+        organization_role_id
     ):
 
         conn = get_connection()
@@ -17,15 +18,18 @@ class WhlSettingsDAL:
             INSERT INTO whl_settings (
                 guild_id,
                 whl_type,
-                category_id
+                category_id,
+                organization_role_id
             )
-            VALUES (%s, %s, %s)
+            VALUES (%s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE
-                category_id = VALUES(category_id)
+                category_id = VALUES(category_id),
+                organization_role_id = VALUES(organization_role_id)
         """, (
             guild_id,
             whl_type.lower(),
-            category_id
+            category_id,
+            organization_role_id
         ))
 
         conn.commit()
@@ -117,3 +121,4 @@ class WhlSettingsDAL:
         conn.close()
 
         return result
+

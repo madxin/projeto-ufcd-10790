@@ -7,12 +7,14 @@ class WhlSettingsBLL:
     def set_whl_category(
         guild_id,
         whl_type,
-        category_id
+        category_id,
+        organization_role_id
     ):
         WhlSettingsDAL.set_whl_category(
             guild_id,
             whl_type,
-            category_id
+            category_id,
+            organization_role_id
         )
 
     @staticmethod
@@ -44,3 +46,4 @@ class WhlSettingsBLL:
         return WhlSettingsDAL.get_all_whl_configs(
             guild_id
         )
+

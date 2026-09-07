@@ -64,17 +64,12 @@ def initialize_database():
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS whl_settings (
-
             id INT AUTO_INCREMENT PRIMARY KEY,
-
             guild_id BIGINT NOT NULL,
-
             whl_type VARCHAR(100) NOT NULL,
-
             category_id BIGINT,
-
             staff_role_id BIGINT,
-
+            organization_role_id BIGINT,
             UNIQUE(guild_id, whl_type)
         )
     """)
