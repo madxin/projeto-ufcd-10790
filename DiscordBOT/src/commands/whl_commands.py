@@ -1,7 +1,6 @@
 import discord
 from discord.ext import commands
 
-
 from src.bll.whl_settings_bll import WhlSettingsBLL
 import io
 from datetime import datetime
@@ -9,6 +8,7 @@ from datetime import datetime
 from src.bll.settings_bll import SettingsBLL
 from src.bll.players_bll import PlayersBLL
 from src.bll.whitelist_block_bll import WhitelistBlockBLL
+
 
 class WhlMembersView(discord.ui.View):
 
@@ -36,10 +36,88 @@ class WhlMembersView(discord.ui.View):
             ephemeral=True
         )
 
+class WhlApproveModal(discord.ui.Modal):
+
+    def __init__(self, whl_type):
+        super().__init__(
+            title="Aprovar Candidatura"
+        )
+
+        self.whl_type = whl_type
+
+        self.job = discord.ui.TextInput(
+            label="Job",
+            placeholder="Ex: police",
+            required=True,
+            max_length=50
+        )
+
+        self.grade = discord.ui.TextInput(
+            label="Grade",
+            placeholder="Ex: 0",
+            required=True,
+            max_length=10
+        )
+
+        self.add_item(self.job)
+        self.add_item(self.grade)
+
+    async def on_submit(
+        self,
+        interaction: discord.Interaction
+    ):
+
+        guild = interaction.guild
+        staff_user = interaction.user
+
+        job = self.job.value.strip()
+        
+        try:
+            grade = int(self.grade.value.strip())
+        except ValueError:
+
+            await interaction.response.send_message(
+                "❌ A grade tem de ser um número.",
+                ephemeral=True
+            )
+
+            return
+
+        await interaction.response.send_message(
+            f"✅ Dados da aprovação recebidos.\n\n"
+            f"💼 **Job:** `{job}`\n"
+            f"📊 **Grade:** `{grade}`",
+            ephemeral=True
+        )
+
+
 class WhlReviewView(discord.ui.View):
 
-    def __init__(self):
+    def __init__(self, whl_type):
         super().__init__(timeout=None)
+
+        self.whl_type = whl_type
+
+    def has_staff_permission(self, interaction):
+
+        config = WhlSettingsBLL.get_whl_config(
+            interaction.guild.id,
+            self.whl_type
+        )
+
+        if config is None:
+            return False
+
+        _, staff_role_id, _ = config
+
+        staff_role = interaction.guild.get_role(
+            staff_role_id
+        )
+
+        if staff_role is None:
+            return False
+
+        return staff_role in interaction.user.roles
 
     @discord.ui.button(
         label="✅ Aprovar",
@@ -50,6 +128,21 @@ class WhlReviewView(discord.ui.View):
         interaction: discord.Interaction,
         button: discord.ui.Button
     ):
+
+        if not self.has_staff_permission(interaction):
+
+            await interaction.response.send_message(
+                "❌ Não tens permissões para analisar esta candidatura.",
+                ephemeral=True
+            )
+
+            return
+
+        await interaction.response.send_modal(
+            WhlApproveModal(self.whl_type)
+        )
+
+        return
 
         guild = interaction.guild
         user = interaction.user
@@ -122,6 +215,15 @@ class WhlReviewView(discord.ui.View):
         button: discord.ui.Button
     ):
 
+        if not self.has_staff_permission(interaction):
+
+            await interaction.response.send_message(
+                "❌ Não tens permissões para analisar esta candidatura.",
+                ephemeral=True
+            )
+
+            return
+
         guild = interaction.guild
         user = interaction.user
 
@@ -183,9 +285,16 @@ class WhlReviewView(discord.ui.View):
 
         await interaction.channel.delete()
 
+
 class WhlRemoveJobConfirmView(discord.ui.View):
 
-    def __init__(self, whl_type, category_id, staff_role_id, player):
+    def __init__(
+        self,
+        whl_type,
+        category_id,
+        staff_role_id,
+        player
+    ):
         super().__init__(timeout=180)
 
         self.whl_type = whl_type
@@ -248,7 +357,13 @@ class WhlRemoveJobConfirmView(discord.ui.View):
 
 class WhlRemoveJobFinalView(discord.ui.View):
 
-    def __init__(self, whl_type, category_id, staff_role_id, player):
+    def __init__(
+        self,
+        whl_type,
+        category_id,
+        staff_role_id,
+        player
+    ):
         super().__init__(timeout=180)
 
         self.whl_type = whl_type
@@ -289,7 +404,9 @@ class WhlRemoveJobFinalView(discord.ui.View):
             interaction.guild.id
         )
 
-        role = interaction.guild.get_role(role_id)
+        role = interaction.guild.get_role(
+            role_id
+        )
 
         if role:
             await user.add_roles(role)
@@ -321,6 +438,7 @@ class WhlRemoveJobFinalView(discord.ui.View):
             embed=None,
             view=None
         )
+
 
 class WhlTypeSelect(discord.ui.Select):
 
@@ -379,10 +497,12 @@ class WhlTypeSelect(discord.ui.Select):
         )
 
         if player is None:
+
             await interaction.response.send_message(
                 "❌ O teu Discord não está associado a nenhum jogador no servidor.",
                 ephemeral=True
             )
+
             return
 
         job = player[4]
@@ -399,16 +519,19 @@ class WhlTypeSelect(discord.ui.Select):
         has_whl_block = False
 
         if member and whl_block_role_id:
+
             has_whl_block = any(
                 role.id == whl_block_role_id
                 for role in member.roles
             )
 
         if has_whl_block:
+
             await interaction.response.send_message(
                 "🔒 Estás atualmente em **Whitelist Block** e não podes abrir uma candidatura.",
                 ephemeral=True
             )
+
             return
 
         if job and job != "unemployed":
@@ -465,7 +588,7 @@ class WhlTypeSelect(discord.ui.Select):
             )
 
             return
-        
+
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(
                 view_channel=False
@@ -488,29 +611,35 @@ class WhlTypeSelect(discord.ui.Select):
                 )
             )
 
-            channel = await guild.create_text_channel(
-                name=channel_name,
-                category=category,
-                overwrites=overwrites
-            )
+        channel = await guild.create_text_channel(
+            name=channel_name,
+            category=category,
+            overwrites=overwrites
+        )
 
-            await channel.send(
-                f"📋 Bem-vindo {user.mention}\n\n"
-                f"**Candidatura: {whl_type.capitalize()}**\n\n"
-                f"Por favor responda às seguintes questões:\n\n"
-                f"1️⃣ Nome IC\n"
-                f"2️⃣ Idade IC\n"
-                f"3️⃣ Horas de jogo no servidor\n"
-                f"4️⃣ Experiência anterior\n"
-                f"5️⃣ Porque deseja integrar esta whitelist?\n\n"
-                f"Quando terminar aguarde pela análise da equipa responsável.",
-                view=WhlReviewView()
-            )
+        await channel.send(
+            f"📋 Bem-vindo {user.mention}\n\n"
+            f"**Candidatura: {whl_type.capitalize()}**\n\n"
+            f"Por favor responda às seguintes questões:\n\n"
+            f"1️⃣ Nome IC\n"
+            f"2️⃣ Idade IC\n"
+            f"3️⃣ Horas de jogo no servidor\n"
+            f"4️⃣ Experiência anterior\n"
+            f"5️⃣ Porque deseja integrar esta whitelist?\n\n"
+            f"Quando terminar, indique os membros da organização.",
+            view=WhlMembersView()
+        )
 
-            await interaction.response.send_message(
-                f"✅ Candidatura criada: {channel.mention}",
-                ephemeral=True
-            )
+        await channel.send(
+            "👮 **Análise da candidatura**\n\n"
+            "A equipa responsável irá analisar esta candidatura.",
+            view=WhlReviewView(whl_type)
+        )
+
+        await interaction.response.send_message(
+            f"✅ Candidatura criada: {channel.mention}",
+            ephemeral=True
+        )
 
 
 class WhlTypeView(discord.ui.View):
@@ -524,10 +653,10 @@ class WhlTypeView(discord.ui.View):
         )
 
 
-
 class WhlPanelView(discord.ui.View):
 
     def __init__(self):
+
         super().__init__(timeout=None)
 
     @discord.ui.button(

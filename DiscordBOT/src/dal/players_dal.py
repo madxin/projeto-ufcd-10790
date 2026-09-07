@@ -48,3 +48,28 @@ class PlayersDAL:
         conn.close()
 
         return affected_rows > 0
+
+    @staticmethod
+    def set_player_job(discord_id, job, job_grade):
+        conn = get_server_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            UPDATE users
+            SET job = %s,
+                job_grade = %s
+            WHERE discord_id = %s
+        """, (
+            job,
+            job_grade,
+            discord_id
+        ))
+
+        conn.commit()
+
+        affected_rows = cursor.rowcount
+
+        cursor.close()
+        conn.close()
+
+        return affected_rows > 0

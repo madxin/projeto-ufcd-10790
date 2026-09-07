@@ -10,3 +10,11 @@ class PlayersBLL:
     @staticmethod
     def remove_player_job(discord_id):
         return PlayersDAL.remove_player_job(discord_id)
+
+    @staticmethod
+    def set_player_job(discord_id, job, job_grade):
+        return PlayersDAL.set_player_job(
+            discord_id,
+            job,
+            job_grade
+        )
