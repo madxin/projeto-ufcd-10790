@@ -769,19 +769,36 @@ class WhlTypeSelect(discord.ui.Select):
             guild_id
         )
 
+        guild = discord.utils.get(
+            discord.Client._connection.guilds,
+            id=guild_id
+        )
+
         options = []
 
-        for whl_type, _, _, _ in configs:
+        for whl_type, _, _, organization_role_id in configs:
+
+            role = None
+
+            if guild:
+                role = guild.get_role(
+                    organization_role_id
+                )
+
+            if role:
+                label = role.name
+            else:
+                label = whl_type.capitalize()
 
             options.append(
                 discord.SelectOption(
-                    label=whl_type.capitalize(),
+                    label=label,
                     value=whl_type
                 )
             )
 
         super().__init__(
-            placeholder="Escolha a whitelist...",
+            placeholder="Escolha uma organização...",
             min_values=1,
             max_values=1,
             options=options
@@ -977,7 +994,6 @@ class WhlTypeView(discord.ui.View):
         self.add_item(
             WhlTypeSelect(guild_id)
         )
-
 
 class WhlPanelView(discord.ui.View):
 
