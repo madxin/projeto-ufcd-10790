@@ -9,6 +9,10 @@ from src.bll.settings_bll import SettingsBLL
 from src.bll.players_bll import PlayersBLL
 from src.bll.whitelist_block_bll import WhitelistBlockBLL
 
+import asyncio
+
+from src.bll.fivem_bll import FiveMBLL
+
 
 class WhlMembersView(discord.ui.View):
 
@@ -194,6 +198,16 @@ class WhlApproveModal(discord.ui.Modal):
             )
 
             return
+
+
+        # SINCRONIZAR CANDIDATO COM O FIVEM
+
+        fivem_result = await asyncio.to_thread(
+            FiveMBLL.sync_player_job,
+            candidate.id,
+            job,
+            grade
+        )
 
         # PROCESSAR MEMBROS
 
