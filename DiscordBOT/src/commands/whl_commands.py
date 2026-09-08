@@ -763,31 +763,26 @@ class WhlRemoveJobFinalView(discord.ui.View):
 
 class WhlTypeSelect(discord.ui.Select):
 
-    def __init__(self, guild_id):
+    def __init__(self, guild):
 
         configs = WhlSettingsBLL.get_all_whl_configs(
-            guild_id
-        )
-
-        guild = discord.utils.get(
-            discord.Client._connection.guilds,
-            id=guild_id
+            guild.id
         )
 
         options = []
 
         for whl_type, _, _, organization_role_id in configs:
 
-            role = None
+            organization_role = guild.get_role(
+                organization_role_id
+            )
 
-            if guild:
-                role = guild.get_role(
-                    organization_role_id
-                )
+            if organization_role:
 
-            if role:
-                label = role.name
+                label = organization_role.name
+
             else:
+
                 label = whl_type.capitalize()
 
             options.append(
@@ -987,13 +982,14 @@ class WhlTypeSelect(discord.ui.Select):
 
 class WhlTypeView(discord.ui.View):
 
-    def __init__(self, guild_id):
+    def __init__(self, guild):
 
         super().__init__(timeout=180)
 
         self.add_item(
-            WhlTypeSelect(guild_id)
+            WhlTypeSelect(guild)
         )
+
 
 class WhlPanelView(discord.ui.View):
 
@@ -1013,13 +1009,12 @@ class WhlPanelView(discord.ui.View):
     ):
 
         await interaction.response.send_message(
-            "Escolha a whitelist:",
+            "Escolha a organização:",
             view=WhlTypeView(
-                interaction.guild.id
+                interaction.guild
             ),
             ephemeral=True
         )
-
 
 def setup(bot):
 
@@ -1039,4 +1034,5 @@ def setup(bot):
         await ctx.send(
             embed=embed,
             view=WhlPanelView()
-        )
+        )        
+        
