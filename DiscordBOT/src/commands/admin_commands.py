@@ -148,7 +148,7 @@ def setup(bot):
                 f"**{ticket_type.capitalize()}**\n"
                 f"📂 Categoria: "
                 f"{category.name if category else 'Não configurada'}\n"
-                f"👮 Cargo: "
+                f"👨‍💼 Cargo: "
                 f"{role.mention if role else 'Não configurado'}\n\n"
             )
 
@@ -289,7 +289,7 @@ def setup(bot):
             bloco = (
                 f"📋 **{whl_type.capitalize()}**\n"
                 f"└ 📁 Categoria: {category_text}\n"
-                f"└ 👮 Staff: {staff_text}\n"
+                f"└ 👨‍💼 Staff: {staff_text}\n"
                 f"└ 🏢 Organização: {organization_text}\n\n"
             )
 

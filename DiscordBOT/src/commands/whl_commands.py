@@ -350,7 +350,7 @@ class WhlApproveModal(discord.ui.Modal):
                 await logs_channel.send(
                     f"✅ **Candidatura Aprovada**\n\n"
                     f"👤 **Candidato:** {candidate.mention}\n"
-                    f"👮 **Aprovada por:** {staff_user.mention}\n"
+                    f"👨‍💼 **Aprovada por:** {staff_user.mention}\n"
                     f"📁 **Whitelist:** `{self.whl_type}`\n"
                     f"💼 **Job:** `{job}`\n"
                     f"📊 **Grade:** `{grade}`\n\n"
@@ -966,7 +966,7 @@ class WhlTypeSelect(discord.ui.Select):
         )
 
         await channel.send(
-            "👮 **Análise da candidatura**\n\n"
+            "👨‍💼 **Análise da candidatura**\n\n"
             "A equipa responsável irá analisar esta candidatura.",
             view=WhlReviewView(
                 whl_type,
