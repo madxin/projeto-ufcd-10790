@@ -12,38 +12,59 @@ from src.bll.whitelist_block_bll import WhitelistBlockBLL
 
 class WhlMembersView(discord.ui.View):
 
-    def __init__(self):
+    def __init__(self, candidate_id):
         super().__init__(timeout=300)
 
-    @discord.ui.button(
-        label="👥 Indicar membros",
-        style=discord.ButtonStyle.primary
-    )
-    async def add_members(
-        self,
-        interaction: discord.Interaction,
-        button: discord.ui.Button
-    ):
+        self.candidate_id = candidate_id
+        self.selected_members = []
+
+        self.member_select = discord.ui.UserSelect(
+            placeholder="Seleciona os membros da organização",
+            min_values=0,
+            max_values=25
+        )
+
+        self.member_select.callback = self.select_members
+        self.add_item(self.member_select)
+
+    async def select_members(self, interaction: discord.Interaction):
+
+        if interaction.user.id != self.candidate_id:
+            await interaction.response.send_message(
+                "❌ Apenas o candidato pode indicar os membros da organização.",
+                ephemeral=True
+            )
+            return
+
+        self.selected_members = list(self.member_select.values)
+
+        if not self.selected_members:
+            await interaction.response.send_message(
+                "✅ Registado: candidatura individual, sem membros.",
+                ephemeral=True
+            )
+            return
+
+        nomes = "\n".join(
+            f"• {member.mention}"
+            for member in self.selected_members
+        )
 
         await interaction.response.send_message(
-            "👥 Menciona agora os membros da tua organização nesta mensagem.\n\n"
-            "⚠️ **Importante:**\n"
-            "• Os membros devem já ter entrado na cidade.\n"
-            "• Os membros não podem pertencer atualmente a outra organização.\n"
-            "• Membros que não cumpram estas condições serão ignorados no momento da aprovação.\n\n"
-            "Exemplo:\n"
-            "@Jogador1 @Jogador2 @Jogador3",
+            "✅ **Membros da organização registados:**\n\n"
+            f"{nomes}",
             ephemeral=True
         )
 
 class WhlApproveModal(discord.ui.Modal):
 
-    def __init__(self, whl_type):
+    def __init__(self, whl_type, members_view):
         super().__init__(
             title="Aprovar Candidatura"
         )
 
         self.whl_type = whl_type
+        self.members_view = members_view
 
         self.job = discord.ui.TextInput(
             label="Job",
@@ -67,13 +88,13 @@ class WhlApproveModal(discord.ui.Modal):
         interaction: discord.Interaction
     ):
 
-        guild = interaction.guild
-        staff_user = interaction.user
-
         job = self.job.value.strip()
-        
+
         try:
-            grade = int(self.grade.value.strip())
+            grade = int(
+                self.grade.value.strip()
+            )
+
         except ValueError:
 
             await interaction.response.send_message(
@@ -83,20 +104,295 @@ class WhlApproveModal(discord.ui.Modal):
 
             return
 
-        await interaction.response.send_message(
-            f"✅ Dados da aprovação recebidos.\n\n"
-            f"💼 **Job:** `{job}`\n"
-            f"📊 **Grade:** `{grade}`",
+        await interaction.response.defer(
             ephemeral=True
         )
 
+        guild = interaction.guild
+        staff_user = interaction.user
+
+        candidate_id = self.members_view.candidate_id
+        members = self.members_view.selected_members
+
+        # OBTER CANDIDATO
+
+        candidate = guild.get_member(
+            candidate_id
+        )
+
+        if candidate is None:
+
+            await interaction.followup.send(
+                "❌ Não foi possível encontrar o candidato no Discord.",
+                ephemeral=True
+            )
+
+            return
+
+        # OBTER CONFIGURAÇÃO
+
+        config = WhlSettingsBLL.get_whl_config(
+            guild.id,
+            self.whl_type
+        )
+
+        if config is None:
+
+            await interaction.followup.send(
+                "❌ A configuração desta whitelist não foi encontrada.",
+                ephemeral=True
+            )
+
+            return
+
+        category_id, staff_role_id, organization_role_id = config
+
+        # CARGO DA ORGANIZAÇÃO
+
+        organization_role = guild.get_role(
+            organization_role_id
+        )
+
+        if organization_role is None:
+
+            await interaction.followup.send(
+                "❌ O cargo da organização configurado para esta whitelist não existe.",
+                ephemeral=True
+            )
+
+            return
+
+        # ATUALIZAR CANDIDATO
+
+        candidate_updated = PlayersBLL.set_player_job(
+            str(candidate.id),
+            job,
+            grade
+        )
+
+        if not candidate_updated:
+
+            await interaction.followup.send(
+                "❌ Não foi possível atualizar o emprego do candidato.",
+                ephemeral=True
+            )
+
+            return
+
+        try:
+
+            await candidate.add_roles(
+                organization_role,
+                reason=f"Whitelist {self.whl_type} aprovada"
+            )
+
+        except discord.Forbidden:
+
+            await interaction.followup.send(
+                "❌ Não tenho permissões para atribuir o cargo da organização ao candidato.",
+                ephemeral=True
+            )
+
+            return
+
+        # PROCESSAR MEMBROS
+
+        approved_members = []
+        ignored_members = []
+
+        whl_block_role_id = SettingsBLL.get_whl_block_role(
+            guild.id
+        )
+
+        for member in members:
+
+            if member.id == candidate.id:
+                continue
+
+            player = PlayersBLL.get_player_by_discord_id(
+                str(member.id)
+            )
+
+            if player is None:
+
+                ignored_members.append(
+                    f"{member.mention} — jogador não encontrado"
+                )
+
+                continue
+
+            current_job = player[4]
+
+            has_whl_block = False
+
+            if whl_block_role_id:
+
+                has_whl_block = any(
+                    role.id == whl_block_role_id
+                    for role in member.roles
+                )
+
+            if has_whl_block:
+
+                ignored_members.append(
+                    f"{member.mention} — Whitelist Block"
+                )
+
+                continue
+
+            if current_job and current_job != "unemployed":
+
+                ignored_members.append(
+                    f"{member.mention} — já possui o job `{current_job}`"
+                )
+
+                continue
+
+            member_updated = PlayersBLL.set_player_job(
+                str(member.id),
+                job,
+                0
+            )
+
+            if not member_updated:
+
+                ignored_members.append(
+                    f"{member.mention} — não foi possível atualizar o job"
+                )
+
+                continue
+
+            try:
+
+                await member.add_roles(
+                    organization_role,
+                    reason=f"Membro da organização {self.whl_type}"
+                )
+
+                approved_members.append(
+                    member.mention
+                )
+
+            except discord.Forbidden:
+
+                ignored_members.append(
+                    f"{member.mention} — sem permissões para atribuir cargo"
+                )
+
+        # TRANSCRIPT
+
+        messages = []
+
+        async for message in interaction.channel.history(
+            limit=None,
+            oldest_first=True
+        ):
+
+            timestamp = message.created_at.strftime(
+                "%d/%m/%Y %H:%M:%S"
+            )
+
+            content = message.content
+
+            if not content:
+                content = "[Mensagem sem texto]"
+
+            messages.append(
+                f"[{timestamp}] "
+                f"{message.author}: "
+                f"{content}"
+            )
+
+        transcript_text = "\n".join(
+            messages
+        )
+
+        transcript_file = discord.File(
+            io.BytesIO(
+                transcript_text.encode("utf-8")
+            ),
+            filename=f"{interaction.channel.name}.txt"
+        )
+
+        # LOGS
+
+
+        logs_channel_id = SettingsBLL.get_logs_channel(
+            guild.id
+        )
+
+        if logs_channel_id:
+
+            logs_channel = guild.get_channel(
+                logs_channel_id
+            )
+
+            if logs_channel:
+
+                approved_text = (
+                    "\n".join(
+                        f"• {member}"
+                        for member in approved_members
+                    )
+                    if approved_members
+                    else "Nenhum membro adicional."
+                )
+
+                ignored_text = (
+                    "\n".join(
+                        f"• {member}"
+                        for member in ignored_members
+                    )
+                    if ignored_members
+                    else "Nenhum membro ignorado."
+                )
+
+                await logs_channel.send(
+                    f"✅ **Candidatura Aprovada**\n\n"
+                    f"👤 **Candidato:** {candidate.mention}\n"
+                    f"👮 **Aprovada por:** {staff_user.mention}\n"
+                    f"📁 **Whitelist:** `{self.whl_type}`\n"
+                    f"💼 **Job:** `{job}`\n"
+                    f"📊 **Grade:** `{grade}`\n\n"
+                    f"👥 **Membros aprovados:**\n"
+                    f"{approved_text}\n\n"
+                    f"⚠️ **Membros ignorados:**\n"
+                    f"{ignored_text}\n\n"
+                    f"🕒 **Data:** "
+                    f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}",
+                    file=transcript_file
+                )
+
+        # RESPOSTA FINAL
+
+        approved_count = len(
+            approved_members
+        )
+
+        ignored_count = len(
+            ignored_members
+        )
+
+        await interaction.followup.send(
+            f"✅ **Candidatura aprovada com sucesso!**\n\n"
+            f"👤 **Candidato:** {candidate.mention}\n"
+            f"💼 **Job:** `{job}`\n"
+            f"📊 **Grade:** `{grade}`\n"
+            f"🎭 **Cargo:** {organization_role.mention}\n\n"
+            f"👥 **Membros aprovados:** `{approved_count}`\n"
+            f"⚠️ **Membros ignorados:** `{ignored_count}`",
+            ephemeral=True
+        )
+
+        await interaction.channel.delete()
 
 class WhlReviewView(discord.ui.View):
 
-    def __init__(self, whl_type):
+    def __init__(self, whl_type, members_view):
         super().__init__(timeout=None)
 
         self.whl_type = whl_type
+        self.members_view = members_view
 
     def has_staff_permission(self, interaction):
 
@@ -139,71 +435,11 @@ class WhlReviewView(discord.ui.View):
             return
 
         await interaction.response.send_modal(
-            WhlApproveModal(self.whl_type)
-        )
-
-        return
-
-        guild = interaction.guild
-        user = interaction.user
-
-        messages = []
-
-        async for message in interaction.channel.history(
-            limit=None,
-            oldest_first=True
-        ):
-
-            timestamp = message.created_at.strftime(
-                "%d/%m/%Y %H:%M:%S"
+            WhlApproveModal(
+                self.whl_type,
+                self.members_view
             )
-
-            content = message.content
-
-            if not content:
-                content = "[Mensagem sem texto]"
-
-            messages.append(
-                f"[{timestamp}] "
-                f"{message.author}: "
-                f"{content}"
-            )
-
-        transcript_text = "\n".join(messages)
-
-        transcript_file = discord.File(
-            io.BytesIO(
-                transcript_text.encode("utf-8")
-            ),
-            filename=f"{interaction.channel.name}.txt"
         )
-
-        logs_channel_id = SettingsBLL.get_logs_channel(
-            guild.id
-        )
-
-        if logs_channel_id:
-
-            logs_channel = guild.get_channel(
-                logs_channel_id
-            )
-
-            if logs_channel:
-
-                await logs_channel.send(
-                    f"✅ **Candidatura Aprovada**\n\n"
-                    f"👤 Aprovada por: {user.mention}\n"
-                    f"📁 Canal: {interaction.channel.name}\n"
-                    f"🕒 Data: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}",
-                    file=transcript_file
-                )
-
-        await interaction.response.send_message(
-            "✅ Candidatura aprovada.",
-            ephemeral=True
-        )
-
-        await interaction.channel.delete()
 
     @discord.ui.button(
         label="❌ Rejeitar",
@@ -354,7 +590,6 @@ class WhlRemoveJobConfirmView(discord.ui.View):
             view=None
         )
 
-
 class WhlRemoveJobFinalView(discord.ui.View):
 
     def __init__(
@@ -371,9 +606,35 @@ class WhlRemoveJobFinalView(discord.ui.View):
         self.staff_role_id = staff_role_id
         self.player = player
 
+        self.selected_role = None
+
+        self.role_select = discord.ui.RoleSelect(
+            placeholder="Seleciona o cargo da organização",
+            min_values=1,
+            max_values=1
+        )
+
+        self.role_select.callback = self.select_role
+
+        self.add_item(self.role_select)
+
+    async def select_role(
+        self,
+        interaction: discord.Interaction
+    ):
+
+        self.selected_role = self.role_select.values[0]
+
+        await interaction.response.send_message(
+            f"🎭 Cargo selecionado: {self.selected_role.mention}\n\n"
+            "Agora podes confirmar a remoção do emprego.",
+            ephemeral=True
+        )
+
     @discord.ui.button(
         label="✅ Sim, remover emprego",
-        style=discord.ButtonStyle.danger
+        style=discord.ButtonStyle.danger,
+        row=1
     )
     async def confirm(
         self,
@@ -381,25 +642,60 @@ class WhlRemoveJobFinalView(discord.ui.View):
         button: discord.ui.Button
     ):
 
+        if self.selected_role is None:
+
+            await interaction.response.send_message(
+                "❌ Primeiro tens de selecionar o cargo da organização que queres remover.",
+                ephemeral=True
+            )
+
+            return
+
         user = interaction.user
         discord_id = str(user.id)
 
+        # Remover o emprego da BD
         success = PlayersBLL.remove_player_job(
             discord_id
         )
 
         if not success:
+
             await interaction.response.edit_message(
                 content="❌ Não foi possível remover o emprego.",
                 embed=None,
                 view=None
             )
+
             return
 
+        # Remover o cargo da organização
+        try:
+
+            await user.remove_roles(
+                self.selected_role,
+                reason="Entrada em Whitelist Block"
+            )
+
+        except discord.Forbidden:
+
+            await interaction.response.edit_message(
+                content=(
+                    "❌ O emprego foi removido, mas não tenho "
+                    "permissões para remover o cargo Discord selecionado."
+                ),
+                embed=None,
+                view=None
+            )
+
+            return
+
+        # Criar Whitelist Block
         blocked_until = WhitelistBlockBLL.create_block(
             discord_id
         )
 
+        # Obter cargo Whitelist Block
         role_id = SettingsBLL.get_whl_block_role(
             interaction.guild.id
         )
@@ -409,14 +705,35 @@ class WhlRemoveJobFinalView(discord.ui.View):
         )
 
         if role:
-            await user.add_roles(role)
+
+            try:
+
+                await user.add_roles(
+                    role,
+                    reason="Entrada em Whitelist Block"
+                )
+
+            except discord.Forbidden:
+
+                await interaction.response.edit_message(
+                    content=(
+                        "⚠️ O emprego e o cargo da organização foram removidos, "
+                        "mas não tenho permissões para atribuir o Whitelist Block."
+                    ),
+                    embed=None,
+                    view=None
+                )
+
+                return
 
         await interaction.response.edit_message(
             content=(
                 "✅ **Emprego removido com sucesso.**\n\n"
                 "👤 O teu emprego foi alterado para `unemployed`.\n"
+                f"🎭 Cargo removido: {self.selected_role.mention}\n"
                 "🔒 Recebeste o **Whitelist Block durante 3 dias**.\n"
-                f"⏰ Bloqueio até: `{blocked_until.strftime('%d/%m/%Y %H:%M')}`\n\n"
+                f"⏰ Bloqueio até: "
+                f"`{blocked_until.strftime('%d/%m/%Y %H:%M')}`\n\n"
                 "Depois desse período poderás voltar a candidatar-te."
             ),
             embed=None,
@@ -425,7 +742,8 @@ class WhlRemoveJobFinalView(discord.ui.View):
 
     @discord.ui.button(
         label="❌ Não",
-        style=discord.ButtonStyle.secondary
+        style=discord.ButtonStyle.secondary,
+        row=1
     )
     async def cancel(
         self,
@@ -434,7 +752,10 @@ class WhlRemoveJobFinalView(discord.ui.View):
     ):
 
         await interaction.response.edit_message(
-            content="❌ Operação cancelada. O teu emprego não foi alterado.",
+            content=(
+                "❌ Operação cancelada. "
+                "O teu emprego não foi alterado."
+            ),
             embed=None,
             view=None
         )
@@ -617,6 +938,8 @@ class WhlTypeSelect(discord.ui.Select):
             overwrites=overwrites
         )
 
+        members_view = WhlMembersView(user.id)
+
         await channel.send(
             f"📋 Bem-vindo {user.mention}\n\n"
             f"**Candidatura: {whl_type.capitalize()}**\n\n"
@@ -627,13 +950,16 @@ class WhlTypeSelect(discord.ui.Select):
             f"4️⃣ Experiência anterior\n"
             f"5️⃣ Porque deseja integrar esta whitelist?\n\n"
             f"Quando terminar, indique os membros da organização.",
-            view=WhlMembersView()
+            view=members_view
         )
 
         await channel.send(
             "👮 **Análise da candidatura**\n\n"
             "A equipa responsável irá analisar esta candidatura.",
-            view=WhlReviewView(whl_type)
+            view=WhlReviewView(
+                whl_type,
+                members_view
+            )
         )
 
         await interaction.response.send_message(
