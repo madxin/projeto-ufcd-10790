@@ -231,6 +231,7 @@ def setup(bot):
         )
 
     @bot.command()
+    @commands.has_permissions(administrator=True)
     async def whlconfig(ctx):
 
         configs = WhlSettingsBLL.get_all_whl_configs(
@@ -245,39 +246,76 @@ def setup(bot):
 
             return
 
-        mensagem = "## 📋 Configuração das Whitelists\n\n"
+        mensagens = []
+        mensagem_atual = "⚙️ **Configuração das Whitelists**\n\n"
 
-        for whl_type, category_id, staff_role_id, organization_role_id in configs:
+        for (
+            whl_type,
+            category_id,
+            staff_role_id,
+            organization_role_id
+        ) in configs:
 
-            category = (
-                ctx.guild.get_channel(category_id)
-                if category_id
-                else None
+            category = ctx.guild.get_channel(
+                category_id
             )
 
-            staff_role = (
-                ctx.guild.get_role(staff_role_id)
-                if staff_role_id
-                else None
+            staff_role = ctx.guild.get_role(
+                staff_role_id
             )
 
-            organization_role = (
-                ctx.guild.get_role(organization_role_id)
-                if organization_role_id
-                else None
+            organization_role = ctx.guild.get_role(
+                organization_role_id
             )
 
-            mensagem += (
-                f"**{whl_type.capitalize()}**\n"
-                f"📂 Categoria: "
-                f"{category.name if category else 'Não configurada'}\n"
-                f"👮 Staff: "
-                f"{staff_role.mention if staff_role else 'Não configurado'}\n"
-                f"🏢 Organização: "
-                f"{organization_role.mention if organization_role else 'Não configurado'}\n\n"
+            category_text = (
+                category.mention
+                if category
+                else f"`{category_id}`"
             )
 
-        await ctx.send(mensagem)
+            staff_text = (
+                staff_role.mention
+                if staff_role
+                else f"`{staff_role_id}`"
+            )
+
+            organization_text = (
+                organization_role.mention
+                if organization_role
+                else f"`{organization_role_id}`"
+            )
+
+            bloco = (
+                f"📋 **{whl_type.capitalize()}**\n"
+                f"└ 📁 Categoria: {category_text}\n"
+                f"└ 👮 Staff: {staff_text}\n"
+                f"└ 🏢 Organização: {organization_text}\n\n"
+            )
+
+            if len(mensagem_atual) + len(bloco) > 1900:
+
+                mensagens.append(
+                    mensagem_atual
+                )
+
+                mensagem_atual = bloco
+
+            else:
+
+                mensagem_atual += bloco
+
+        if mensagem_atual:
+
+            mensagens.append(
+                mensagem_atual
+            )
+
+        for mensagem in mensagens:
+
+            await ctx.send(
+                mensagem
+            )
 
         ### PLAYERS
 
