@@ -1,75 +1,263 @@
-import json
 import os
-import urllib.error
-import urllib.request
+
+import requests
+import socketio
+
+from dotenv import load_dotenv
+
+
+load_dotenv()
 
 
 class FiveMBLL:
 
     @staticmethod
     def sync_player_job(discord_id, job, grade):
-        url = os.getenv("FIVEM_BRIDGE_URL")
-        token = os.getenv("FIVEM_BRIDGE_TOKEN")
 
-        if not url:
+        txadmin_url = os.getenv("TXADMIN_URL")
+        username = os.getenv("TXADMIN_USERNAME")
+        password = os.getenv("TXADMIN_PASSWORD")
+
+        # =========================
+        # VALIDAR CONFIGURAÇÃO
+        # =========================
+
+        if not txadmin_url:
             return {
                 "success": False,
                 "status": "not_configured",
-                "message": "FIVEM_BRIDGE_URL não configurado."
+                "message": "TXADMIN_URL não configurado."
             }
 
-        if not token:
+        if not username:
             return {
                 "success": False,
                 "status": "not_configured",
-                "message": "FIVEM_BRIDGE_TOKEN não configurado."
+                "message": "TXADMIN_USERNAME não configurado."
             }
 
-        endpoint = url.rstrip("/") + "/api/discord/job"
-
-        payload = {
-            "discord_id": str(discord_id),
-            "job": str(job),
-            "grade": int(grade)
-        }
-
-        data = json.dumps(payload).encode("utf-8")
-
-        request = urllib.request.Request(
-            endpoint,
-            data=data,
-            method="POST",
-            headers={
-                "Content-Type": "application/json",
-                "X-MW-Token": token
+        if not password:
+            return {
+                "success": False,
+                "status": "not_configured",
+                "message": "TXADMIN_PASSWORD não configurado."
             }
+
+        # =========================
+        # CONSTRUIR COMANDO
+        # =========================
+
+        command = (
+            f"discordsetjob "
+            f"{discord_id} "
+            f"{job} "
+            f"{int(grade)}"
         )
 
+        session = requests.Session()
+
         try:
-            with urllib.request.urlopen(request, timeout=5) as response:
-                response_data = response.read().decode("utf-8")
 
-                return json.loads(response_data)
+            # =========================
+            # LOGIN NO TXADMIN
+            # =========================
 
-        except urllib.error.HTTPError as error:
-            try:
-                response_data = error.read().decode("utf-8")
-                return json.loads(response_data)
-            except Exception:
+            login_response = session.post(
+                f"{txadmin_url.rstrip('/')}/auth/password",
+                json={
+                    "username": username,
+                    "password": password
+                },
+                timeout=10
+            )
+
+            login_response.raise_for_status()
+
+            login_data = login_response.json()
+
+            csrf_token = login_data.get("csrfToken")
+
+            if not csrf_token:
                 return {
                     "success": False,
-                    "status": "http_error",
-                    "message": f"HTTP {error.code}"
+                    "status": "login_error",
+                    "message": "txAdmin não devolveu o CSRF token."
                 }
 
-        except urllib.error.URLError as error:
+            print(
+                "[TXADMIN] Login efetuado com sucesso."
+            )
+
+            # =========================
+            # CRIAR SOCKET.IO
+            # =========================
+
+            sio = socketio.Client(
+                reconnection=False,
+                logger=False,
+                engineio_logger=False
+            )
+
+            command_sent = False
+
+            # =========================
+            # CONNECT
+            # =========================
+
+            @sio.event
+            def connect():
+
+                print(
+                    "[TXADMIN] Socket.IO conectado."
+                )
+
+            # =========================
+            # CONNECT ERROR
+            # =========================
+
+            @sio.event
+            def connect_error(data):
+
+                print(
+                    f"[TXADMIN] Erro Socket.IO: {data}"
+                )
+
+            # =========================
+            # DISCONNECT
+            # =========================
+
+            @sio.event
+            def disconnect():
+
+                print(
+                    "[TXADMIN] Socket.IO desligado."
+                )
+
+            # =========================
+            # CONSOLE DATA
+            # =========================
+
+            @sio.on("consoleData")
+            def console_data(data):
+
+                nonlocal command_sent
+
+                print(
+                    "[TXADMIN] consoleData recebido."
+                )
+
+                if command_sent:
+                    return
+
+                command_sent = True
+
+                print(
+                    f"[TXADMIN] A enviar: {command}"
+                )
+
+                sio.emit(
+                    "consoleCommand",
+                    command
+                )
+
+            # =========================
+            # COOKIES
+            # =========================
+
+            cookies = "; ".join(
+                f"{cookie.name}={cookie.value}"
+                for cookie in session.cookies
+            )
+
+            # =========================
+            # SOCKET.IO
+            # =========================
+            #
+            # A sala liveconsole é enviada
+            # através da query string.
+            #
+            # =========================
+
+            socket_url = (
+                f"{txadmin_url.rstrip('/')}"
+                f"/?rooms=liveconsole"
+            )
+
+            sio.connect(
+                socket_url,
+                transports=["polling"],
+                headers={
+                    "Cookie": cookies,
+                    "x-txadmin-csrftoken": csrf_token
+                },
+                socketio_path="/socket.io"
+            )
+
+            # =========================
+            # ESPERAR EVENTOS
+            # =========================
+
+            sio.sleep(5)
+
+            # =========================
+            # DESLIGAR
+            # =========================
+
+            if sio.connected:
+                sio.disconnect()
+
+            # =========================
+            # RESULTADO
+            # =========================
+
+            if command_sent:
+
+                print(
+                    f"[TXADMIN] Comando enviado: {command}"
+                )
+
+                return {
+                    "success": True,
+                    "status": "executed",
+                    "message": command
+                }
+
+            print(
+                "[TXADMIN] Não foi recebido consoleData."
+            )
+
+            return {
+                "success": False,
+                "status": "command_not_sent",
+                "message": "txAdmin não enviou consoleData."
+            }
+
+        # =========================
+        # ERROS REQUESTS
+        # =========================
+
+        except requests.RequestException as error:
+
+            print(
+                f"[TXADMIN] Erro HTTP: {error}"
+            )
+
             return {
                 "success": False,
                 "status": "connection_error",
-                "message": str(error.reason)
+                "message": str(error)
             }
 
+        # =========================
+        # ERROS SOCKET.IO / OUTROS
+        # =========================
+
         except Exception as error:
+
+            print(
+                f"[TXADMIN] Erro: {error}"
+            )
+
             return {
                 "success": False,
                 "status": "error",
